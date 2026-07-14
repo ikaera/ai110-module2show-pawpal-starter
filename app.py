@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import date, time
 
 import streamlit as st
 
@@ -150,6 +150,19 @@ if conflicts:
         st.warning(warning)
 else:
     st.success("No conflicts detected.")
+
+st.divider()
+
+st.subheader("Find Next Available Slot")
+st.caption("Find the earliest open slot today that's long enough for a new task.")
+
+slot_duration = st.number_input("New task duration (minutes)", min_value=1, max_value=240, value=20, key="slot_duration")
+if st.button("Find next available slot"):
+    slot = scheduler.find_next_available_slot(owner, due_date=date.today(), duration_minutes=int(slot_duration))
+    if slot:
+        st.success(f"Next available slot: {slot}")
+    else:
+        st.warning("No slot available today.")
 
 st.divider()
 

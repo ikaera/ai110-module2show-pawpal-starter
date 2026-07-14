@@ -59,3 +59,11 @@ if conflicts:
         print(f"WARNING: {warning}")
 else:
     print("No conflicts found.")
+
+# --- Next available slot demo: find room for a new 20-minute task on Mochi's busy day. ---
+print("\nFinding next available 20-minute slot for Mochi today:\n")
+slot = scheduler.find_next_available_slot(owner, due_date=morning_walk.due_date, duration_minutes=20)
+if slot:
+    print(f"Next available slot: {slot}")
+else:
+    print("No slot available today.")

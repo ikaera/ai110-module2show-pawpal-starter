@@ -124,6 +124,48 @@ class Scheduler:
             result = [(pet, task) for pet, task in result if task.completed == completed]
         return result
 
+    def find_next_available_slot(
+        self,
+        owner: Owner,
+        due_date: date,
+        duration_minutes: int,
+        day_start: str = "08:00",
+        day_end: str = "21:00",
+    ) -> Optional[str]:
+        """Return the earliest "HH:MM" slot on due_date with at least duration_minutes free, or None."""
+
+        def to_minutes(hhmm: str) -> int:
+            hours, minutes = map(int, hhmm.split(":"))
+            return hours * 60 + minutes
+
+        def to_hhmm(total_minutes: int) -> str:
+            return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+
+        day_tasks = [
+            task
+            for _, task in owner.get_all_tasks()
+            if task.due_date == due_date and not task.completed
+        ]
+        day_tasks.sort(key=lambda t: t.scheduled_time)
+
+        busy_blocks = [
+            (to_minutes(task.scheduled_time), to_minutes(task.scheduled_time) + task.duration_minutes)
+            for task in day_tasks
+        ]
+
+        cursor = to_minutes(day_start)
+        end_of_day = to_minutes(day_end)
+
+        for start, end in busy_blocks:
+            if start - cursor >= duration_minutes:
+                return to_hhmm(cursor)
+            cursor = max(cursor, end)
+
+        if end_of_day - cursor >= duration_minutes:
+            return to_hhmm(cursor)
+
+        return None
+
     def generate_plan(self, owner: Owner) -> List[PlannedItem]:
         """Build today's plan by prioritizing the owner's pending tasks within their available time."""
         pet_tasks = owner.get_all_tasks()

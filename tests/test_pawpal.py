@@ -209,3 +209,53 @@ def test_generate_plan_handles_owner_with_no_pets():
     owner = Owner(name="Jordan", available_minutes=90)
 
     assert scheduler.generate_plan(owner) == []
+
+
+# --- Next available slot ---
+
+def test_find_next_available_slot_returns_gap_between_tasks():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+
+    pet = Pet("Mochi", "dog")
+    pet.add_task(Task("Morning walk", 30, "high", "walk", scheduled_time="08:00", due_date=today))
+    pet.add_task(Task("Breakfast", 10, "high", "feeding", scheduled_time="08:45", due_date=today))
+    owner.add_pet(pet)
+
+    slot = scheduler.find_next_available_slot(owner, due_date=today, duration_minutes=10)
+
+    # Morning walk runs 08:00-08:30, leaving a 15-minute gap before Breakfast at 08:45.
+    assert slot == "08:30"
+
+
+def test_find_next_available_slot_returns_none_when_day_is_full():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+
+    pet = Pet("Mochi", "dog")
+    pet.add_task(Task("All day event", 780, "high", "walk", scheduled_time="08:00", due_date=today))
+    owner.add_pet(pet)
+
+    slot = scheduler.find_next_available_slot(
+        owner, due_date=today, duration_minutes=30, day_start="08:00", day_end="21:00"
+    )
+
+    assert slot is None
+
+
+def test_find_next_available_slot_ignores_completed_tasks():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+
+    pet = Pet("Mochi", "dog")
+    done = Task("Morning walk", 30, "high", "walk", scheduled_time="08:00", due_date=today)
+    done.mark_complete()
+    pet.add_task(done)
+    owner.add_pet(pet)
+
+    slot = scheduler.find_next_available_slot(owner, due_date=today, duration_minutes=10, day_start="08:00")
+
+    assert slot == "08:00"

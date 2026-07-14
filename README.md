@@ -13,7 +13,9 @@ sorting, filtering, recurring tasks, conflict detection, and a time-budgeted dai
 - **Daily recurrence** — `Task.get_next_occurrence()` / `Pet.complete_task()` automatically creates the next
   occurrence when a `"daily"` or `"weekly"` task is marked complete
 - **Conflict warnings** — `Scheduler.detect_conflicts()` flags any two tasks scheduled at the same date and time
-- **Automated test suite** — 15 pytest tests covering happy paths and edge cases for every algorithm above
+- **Next available slot finder** — `Scheduler.find_next_available_slot()` finds the earliest open gap in a
+  pet's day that's long enough for a new task *(optional extension)*
+- **Automated test suite** — 18 pytest tests covering happy paths and edge cases for every algorithm above
 
 ## Scenario
 
@@ -80,7 +82,7 @@ Run the full test suite from the project root:
 python -m pytest
 ```
 
-The suite (`tests/test_pawpal.py`, 15 tests) covers:
+The suite (`tests/test_pawpal.py`, 18 tests) covers:
 
 - **Core behaviors**: marking a task complete, adding a task to a pet
 - **Sorting**: tasks are returned in chronological order by `scheduled_time`, including the empty-list edge case
@@ -88,36 +90,40 @@ The suite (`tests/test_pawpal.py`, 15 tests) covers:
 - **Conflict detection**: two tasks at the same `due_date` + `scheduled_time` are flagged, tasks at the same time on *different* dates are not, and no-conflict cases return an empty list
 - **Filtering**: filtering `(pet, task)` pairs by pet name and/or completion status, including a no-match edge case
 - **Plan generation**: tasks that don't fit the owner's available time are skipped, completed tasks are excluded, and an owner with no pets produces an empty plan
+- **Next available slot**: finds the gap between two tasks, returns `None` when the day is fully booked, and ignores completed tasks when checking for conflicts
 
 Sample test output:
 
 ```
 ============================= test session starts =============================
-platform win32 -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0
-collecting ... collected 15 items
+platform win32 -- Python 3.13.3, pytest-9.1.1, pluggy-1.6.0
+collecting ... collected 18 items
 
-tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [  6%]
-tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 13%]
-tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 20%]
-tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 26%]
-tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 33%]
-tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 40%]
-tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 46%]
-tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 53%]
-tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 60%]
-tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 66%]
-tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 73%]
-tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 80%]
-tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 86%]
-tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 93%]
-tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [100%]
+tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [  5%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 11%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 16%]
+tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 22%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 27%]
+tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 33%]
+tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 38%]
+tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 44%]
+tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 50%]
+tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 55%]
+tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 61%]
+tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 66%]
+tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 72%]
+tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 77%]
+tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [ 83%]
+tests/test_pawpal.py::test_find_next_available_slot_returns_gap_between_tasks PASSED [ 88%]
+tests/test_pawpal.py::test_find_next_available_slot_returns_none_when_day_is_full PASSED [ 94%]
+tests/test_pawpal.py::test_find_next_available_slot_ignores_completed_tasks PASSED [100%]
 
-============================== 15 passed in 0.05s ===============================
+============================== 18 passed in 0.06s ===============================
 ```
 
 **Confidence Level:** 4/5
 
-All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, and plan generation — are covered with both happy-path and edge-case tests, and all 15 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
+All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, plan generation, and next-available-slot lookup — are covered with both happy-path and edge-case tests, and all 18 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
 
 ## Smarter Scheduling
 
@@ -128,6 +134,7 @@ All core scheduling behaviors — sorting, recurrence, conflict detection, filte
 | Filtering | `Scheduler.filter_tasks()` | Filters `(pet, task)` pairs by pet name and/or completion status. |
 | Conflict handling | `Scheduler.detect_conflicts()` | Flags tasks that share the same `due_date` + `scheduled_time` as a warning message; does not detect partial/overlapping-duration conflicts (see `reflection.md` 2b for why). |
 | Recurring tasks | `Task.get_next_occurrence()`, `Pet.complete_task()` | Completing a "daily"/"weekly" task automatically creates its next occurrence, with `due_date` advanced via `datetime.timedelta`. |
+| Next available slot *(optional extension)* | `Scheduler.find_next_available_slot()` | Converts every task's `scheduled_time` to minutes-since-midnight, walks the gaps between them (and before the first / after the last), and returns the earliest "HH:MM" gap that's at least as long as the requested duration, or `None` if the day (bounded by `day_start`/`day_end`) has no room left. Ignores completed tasks. |
 
 ## Demo Walkthrough
 
@@ -142,6 +149,8 @@ All core scheduling behaviors — sorting, recurrence, conflict detection, filte
   when there are none
 - Click **Generate schedule** to build today's time-budgeted plan — included tasks show as green success
   messages, skipped ones as yellow warnings explaining why
+- Click **Find next available slot** *(optional extension)* to get the earliest open gap today that's long
+  enough for a new task of the given duration
 
 **Example workflow:**
 
@@ -204,6 +213,42 @@ Next occurrence created for 2026-07-15 (completed=False)
 Checking for scheduling conflicts:
 
 WARNING: Conflict on 2026-07-14 at 08:30: Mochi's 'Breakfast', Whiskers's 'Play session'
+
+Finding next available 20-minute slot for Mochi today:
+
+Next available slot: 08:45
+```
+
+## Optional Extension: Next Available Slot Finder
+
+`Scheduler.find_next_available_slot(owner, due_date, duration_minutes, day_start="08:00", day_end="21:00")`
+answers a question the other algorithms don't: *"if I need to squeeze in a new N-minute task today, where's
+the first open gap?"* It's available both in the CLI demo (`main.py`) and as a "Find next available slot"
+button in the Streamlit UI (`app.py`).
+
+**How it works:** every non-completed task due on `due_date` is sorted by `scheduled_time` and converted to
+minutes-since-midnight. The method walks the gaps between consecutive tasks (plus the gap before the first
+task and after the last, bounded by `day_start`/`day_end`) and returns the earliest "HH:MM" gap that's at
+least `duration_minutes` long. If nothing fits, it returns `None`.
+
+**Files modified:** `pawpal_system.py` (new `Scheduler.find_next_available_slot` method), `main.py` (CLI demo),
+`app.py` (UI section), `tests/test_pawpal.py` (3 new tests).
+
+**Sample CLI output**, given Mochi's day (Morning walk 08:00-08:30, Breakfast 08:30-08:40, Evening meds 19:30,
+Fetch in the yard 17:00-17:40):
+
+```
+Finding next available 20-minute slot for Mochi today:
+
+Next available slot: 08:45
+```
+
+If the day were completely booked from `day_start` to `day_end`, the same call would print:
+
+```
+Finding next available 20-minute slot for Mochi today:
+
+No slot available today.
 ```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
