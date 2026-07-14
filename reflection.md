@@ -58,6 +58,28 @@ Most classes here (`Owner`, `Pet`, `Task`) are simple data holders with barely a
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
+After drafting the skeleton in `pawpal_system.py`, I reviewed it with AI assistance and made two changes:
+
+1. **Added a `pet` field to `Owner`.** The original skeleton had `Owner` and `Pet` as two disconnected dataclasses — the UML diagram showed an "Owner has Pet" relationship, but nothing in the code actually enforced it. Anyone constructing these objects had to remember to keep a matching `Owner`/`Pet` pair by convention, which is fragile. Adding `pet: Pet` onto `Owner` makes the relationship structural instead of implied.
+
+2. **Added a `PlannedItem` dataclass and changed `generate_plan()`'s return type from `list` to `List[PlannedItem]`.** The original skeleton had no place to store *why* a task was included or skipped, even though explaining the plan is a core requirement from the scenario. Returning a plain list of `Task` objects would have meant either bolting reasoning on later (e.g., a parallel list of strings, easy to get out of sync) or building a separate `explain_plan()` method that has to re-derive reasoning after the fact. Instead, `PlannedItem` pairs each `Task` with `included: bool` and `reason: str` directly, so the explanation is generated at the same time as the decision and can't drift out of sync with it.
+
+**Later change: switching from one pet per owner to multiple pets per owner, and renaming `Planner` to `Scheduler`.**
+
+When implementing the full scheduling logic (moving from stubs to real behavior), the assignment's spec for this step explicitly described `Owner` as managing *multiple* pets and a class named `Scheduler`, which conflicted with the simpler one-pet design from earlier. I chose to align with that fuller spec rather than keep the simplified version, which required several concrete changes:
+
+- **`Owner.pet: Pet` → `Owner.pets: List[Pet]`.** A single `pet` field can't represent a busy owner with more than one animal, which the scenario language ("their pet(s)") always implied was in scope. I also added `add_pet()` so pets can be added incrementally, matching how tasks are added to a pet one at a time.
+
+- **Added `Owner.get_all_tasks()`.** With multiple pets, something needs to flatten each pet's task list into one combined list before scheduling can happen. I put this method on `Owner` rather than on `Scheduler`, because `Owner` already has direct access to its own `pets` — this keeps `Scheduler` from needing to know about `Owner`'s internal structure (it just calls `owner.get_all_tasks()` and gets back everything, an example of encapsulation: each class manages its own internal data and exposes a simple method for others to use).
+
+- **`Planner` renamed to `Scheduler`, and its method signature changed from `generate_plan(pet, owner)` to `generate_plan(owner)`.** Once an owner can have multiple pets, it no longer makes sense for the caller to hand in one specific `pet` — the scheduler needs to retrieve tasks *across all* of the owner's pets itself, via `get_all_tasks()`, rather than being handed a single pet's task list.
+
+- **`PlannedItem` gained a `pet_name` field.** With only one pet, saying "this task was included" was unambiguous. With multiple pets, the explanation needs to say *whose* task it is (e.g., "Mochi's walk was included..."), so each `PlannedItem` now records which pet the task belongs to.
+
+- **`Task` gained `frequency` and `completed` fields**, and the scheduler now filters out tasks where `completed` is already `True` before scheduling — there's no reason to plan time for something already done today.
+
+This is a good example of a design changing mid-implementation for a legitimate reason (a clearer/fuller spec surfaced partway through), rather than scope creep — but it did mean revisiting decisions (one pet, `Planner` naming) that had already been written up earlier in this section, which is worth noting as a lesson in itself: locking in a "simple first" design too early can mean rework later if the fuller requirements were knowable from the start.
+
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

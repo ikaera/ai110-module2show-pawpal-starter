@@ -20,7 +20,10 @@ classDiagram
     class Owner {
         +string name
         +int available_minutes
+        +List~Pet~ pets
         +string preferences
+        +add_pet(pet) None
+        +get_all_tasks() list
     }
 
     class Pet {
@@ -35,13 +38,23 @@ classDiagram
         +int duration_minutes
         +string priority
         +string category
+        +string frequency
+        +bool completed
     }
 
-    class Planner {
-        +generate_plan(pet, owner) list
+    class PlannedItem {
+        +Task task
+        +string pet_name
+        +bool included
+        +string reason
     }
 
-    Owner "1" --> "1" Pet : has
+    class Scheduler {
+        +generate_plan(owner) List~PlannedItem~
+    }
+
+    Owner "1" o-- "0..*" Pet : manages
     Pet "1" o-- "0..*" Task : contains
-    Planner ..> Pet : uses
-    Planner ..> Owner : uses
+    Scheduler ..> Owner : retrieves tasks via
+    Scheduler ..> PlannedItem : creates
+    PlannedItem "1" --> "1" Task : wraps
