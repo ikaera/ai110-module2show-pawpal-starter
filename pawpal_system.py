@@ -15,6 +15,9 @@ class Task:
     frequency: str = "daily"  # "daily", "weekly", etc.
     completed: bool = False
 
+    def mark_complete(self) -> None:
+        self.completed = True
+
 
 @dataclass
 class Pet:
