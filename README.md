@@ -60,19 +60,50 @@ Today's Schedule for Jordan (90 min available):
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+Run the full test suite from the project root:
 
-# Run with coverage:
-pytest --cov
+```bash
+python -m pytest
 ```
+
+The suite (`tests/test_pawpal.py`, 15 tests) covers:
+
+- **Core behaviors**: marking a task complete, adding a task to a pet
+- **Sorting**: tasks are returned in chronological order by `scheduled_time`, including the empty-list edge case
+- **Recurrence**: completing a `"daily"` task creates a next-day occurrence; a non-recurring task creates nothing
+- **Conflict detection**: two tasks at the same `due_date` + `scheduled_time` are flagged, tasks at the same time on *different* dates are not, and no-conflict cases return an empty list
+- **Filtering**: filtering `(pet, task)` pairs by pet name and/or completion status, including a no-match edge case
+- **Plan generation**: tasks that don't fit the owner's available time are skipped, completed tasks are excluded, and an owner with no pets produces an empty plan
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.3.4, pluggy-1.5.0
+collecting ... collected 15 items
+
+tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [  6%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 13%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 20%]
+tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 26%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 33%]
+tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 40%]
+tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 46%]
+tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 53%]
+tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 60%]
+tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 66%]
+tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 73%]
+tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 80%]
+tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 86%]
+tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 93%]
+tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [100%]
+
+============================== 15 passed in 0.05s ===============================
 ```
+
+**Confidence Level:** ⭐⭐⭐⭐☆ (4/5)
+
+All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, and plan generation — are covered with both happy-path and edge-case tests, and all 15 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
 
 ## 📐 Smarter Scheduling
 
