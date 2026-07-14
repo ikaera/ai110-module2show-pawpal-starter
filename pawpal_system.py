@@ -16,6 +16,7 @@ class Task:
     completed: bool = False
 
     def mark_complete(self) -> None:
+        """Mark this task as completed."""
         self.completed = True
 
 
@@ -26,6 +27,7 @@ class Pet:
     tasks: List[Task] = field(default_factory=list)
 
     def add_task(self, task: Task) -> None:
+        """Add a care task to this pet's task list."""
         self.tasks.append(task)
 
 
@@ -37,6 +39,7 @@ class Owner:
     preferences: str = ""
 
     def add_pet(self, pet: Pet) -> None:
+        """Add a pet to this owner's list of pets."""
         self.pets.append(pet)
 
     def get_all_tasks(self) -> List[Pet]:
@@ -60,6 +63,7 @@ class Scheduler:
     """The "brain": retrieves tasks from an Owner's pets and builds a daily plan."""
 
     def generate_plan(self, owner: Owner) -> List[PlannedItem]:
+        """Build today's plan by prioritizing the owner's pending tasks within their available time."""
         pet_tasks = owner.get_all_tasks()
 
         # Only incomplete tasks need scheduling today.
