@@ -46,6 +46,45 @@ def test_sort_by_time_handles_empty_list():
     assert scheduler.sort_by_time([]) == []
 
 
+def test_sort_by_priority_then_time_orders_by_priority_first():
+    scheduler = Scheduler()
+    tasks = [
+        Task("Brushing", 15, "low", "grooming", scheduled_time="20:00"),
+        Task("Morning walk", 30, "high", "walk", scheduled_time="08:00"),
+        Task("Litter box cleaning", 10, "medium", "grooming", scheduled_time="12:00"),
+        Task("Evening meds", 5, "high", "meds", scheduled_time="19:30"),
+    ]
+
+    sorted_tasks = scheduler.sort_by_priority_then_time(tasks)
+
+    # High priority tasks first (earliest time wins ties), then medium, then low.
+    assert [t.title for t in sorted_tasks] == [
+        "Morning walk",
+        "Evening meds",
+        "Litter box cleaning",
+        "Brushing",
+    ]
+
+
+def test_sort_by_priority_then_time_breaks_ties_by_time():
+    scheduler = Scheduler()
+    tasks = [
+        Task("Evening meds", 5, "high", "meds", scheduled_time="19:30"),
+        Task("Morning walk", 30, "high", "walk", scheduled_time="08:00"),
+        Task("Breakfast", 10, "high", "feeding", scheduled_time="08:30"),
+    ]
+
+    sorted_tasks = scheduler.sort_by_priority_then_time(tasks)
+
+    assert [t.title for t in sorted_tasks] == ["Morning walk", "Breakfast", "Evening meds"]
+
+
+def test_sort_by_priority_then_time_handles_empty_list():
+    scheduler = Scheduler()
+
+    assert scheduler.sort_by_priority_then_time([]) == []
+
+
 # --- Recurrence logic ---
 
 def test_completing_daily_task_creates_next_day_occurrence():

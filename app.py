@@ -129,6 +129,25 @@ if all_tasks:
 else:
     st.info("No tasks yet.")
 
+st.subheader("All Tasks — Sorted by Priority, then Time")
+st.caption("High priority first; ties within the same priority are broken by scheduled time.")
+
+if all_tasks:
+    priority_sorted_tasks = scheduler.sort_by_priority_then_time(all_tasks)
+    st.table(
+        [
+            {
+                "priority": t.priority,
+                "time": t.scheduled_time,
+                "title": t.title,
+                "completed": t.completed,
+            }
+            for t in priority_sorted_tasks
+        ]
+    )
+else:
+    st.info("No tasks yet.")
+
 st.subheader("Filter Tasks")
 filter_col1, filter_col2 = st.columns(2)
 with filter_col1:

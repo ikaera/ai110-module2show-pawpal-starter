@@ -9,6 +9,8 @@ sorting, filtering, recurring tasks, conflict detection, and a time-budgeted dai
 - **Priority/time-budget scheduling** — `Scheduler.generate_plan()` fills the owner's available minutes with the
   highest-priority tasks first, skipping (and explaining why) any that don't fit
 - **Sorting by time** — `Scheduler.sort_by_time()` lists every task chronologically by `scheduled_time`
+- **Priority-based scheduling** — `Scheduler.sort_by_priority_then_time()` sorts every task by priority
+  (high → medium → low), breaking ties within the same priority by `scheduled_time` *(optional extension)*
 - **Filtering** — `Scheduler.filter_tasks()` narrows tasks by pet name and/or completion status
 - **Daily recurrence** — `Task.get_next_occurrence()` / `Pet.complete_task()` automatically creates the next
   occurrence when a `"daily"` or `"weekly"` task is marked complete
@@ -17,7 +19,7 @@ sorting, filtering, recurring tasks, conflict detection, and a time-budgeted dai
   pet's day that's long enough for a new task *(optional extension)*
 - **Data persistence** — `Owner.save_to_json()` / `Owner.load_from_json()` save/restore pets and tasks to/from
   `data.json` so nothing is lost between app runs *(optional extension)*
-- **Automated test suite** — 21 pytest tests covering happy paths and edge cases for every algorithm above
+- **Automated test suite** — 24 pytest tests covering happy paths and edge cases for every algorithm above
 
 ## Scenario
 
@@ -84,10 +86,11 @@ Run the full test suite from the project root:
 python -m pytest
 ```
 
-The suite (`tests/test_pawpal.py`, 21 tests) covers:
+The suite (`tests/test_pawpal.py`, 24 tests) covers:
 
 - **Core behaviors**: marking a task complete, adding a task to a pet
 - **Sorting**: tasks are returned in chronological order by `scheduled_time`, including the empty-list edge case
+- **Priority scheduling**: tasks are ordered by priority first (high → medium → low), ties within the same priority are broken by `scheduled_time`, and the empty-list edge case
 - **Recurrence**: completing a `"daily"` task creates a next-day occurrence; a non-recurring task creates nothing
 - **Conflict detection**: two tasks at the same `due_date` + `scheduled_time` are flagged, tasks at the same time on *different* dates are not, and no-conflict cases return an empty list
 - **Filtering**: filtering `(pet, task)` pairs by pet name and/or completion status, including a no-match edge case
@@ -100,42 +103,46 @@ Sample test output:
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.13.3, pytest-9.1.1, pluggy-1.6.0
-collecting ... collected 21 items
+collecting ... collected 24 items
 
 tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [  4%]
-tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [  9%]
-tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 14%]
-tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 19%]
-tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 23%]
-tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 28%]
-tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 33%]
-tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 38%]
-tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 42%]
-tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 47%]
-tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 52%]
-tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 57%]
-tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 61%]
-tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 66%]
-tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [ 71%]
-tests/test_pawpal.py::test_find_next_available_slot_returns_gap_between_tasks PASSED [ 76%]
-tests/test_pawpal.py::test_find_next_available_slot_returns_none_when_day_is_full PASSED [ 80%]
-tests/test_pawpal.py::test_find_next_available_slot_ignores_completed_tasks PASSED [ 85%]
-tests/test_pawpal.py::test_save_and_load_json_round_trip PASSED          [ 90%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [  8%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 12%]
+tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 16%]
+tests/test_pawpal.py::test_sort_by_priority_then_time_orders_by_priority_first PASSED [ 20%]
+tests/test_pawpal.py::test_sort_by_priority_then_time_breaks_ties_by_time PASSED [ 25%]
+tests/test_pawpal.py::test_sort_by_priority_then_time_handles_empty_list PASSED [ 29%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 33%]
+tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 37%]
+tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 41%]
+tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 45%]
+tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 50%]
+tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 54%]
+tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 58%]
+tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 62%]
+tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 66%]
+tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 70%]
+tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [ 75%]
+tests/test_pawpal.py::test_find_next_available_slot_returns_gap_between_tasks PASSED [ 79%]
+tests/test_pawpal.py::test_find_next_available_slot_returns_none_when_day_is_full PASSED [ 83%]
+tests/test_pawpal.py::test_find_next_available_slot_ignores_completed_tasks PASSED [ 87%]
+tests/test_pawpal.py::test_save_and_load_json_round_trip PASSED          [ 91%]
 tests/test_pawpal.py::test_load_from_json_missing_file_raises PASSED     [ 95%]
 tests/test_pawpal.py::test_save_to_json_handles_owner_with_no_pets PASSED [100%]
 
-============================= 21 passed in 0.07s ===============================
+============================= 24 passed in 0.06s ===============================
 ```
 
 **Confidence Level:** 4/5
 
-All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, plan generation, next-available-slot lookup, and JSON persistence — are covered with both happy-path and edge-case tests, and all 21 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
+All core scheduling behaviors — sorting, priority-based scheduling, recurrence, conflict detection, filtering, plan generation, next-available-slot lookup, and JSON persistence — are covered with both happy-path and edge-case tests, and all 24 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
 
 ## Smarter Scheduling
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
 | Task sorting | `Scheduler.sort_by_time()` | Sorts tasks earliest-to-latest by their `scheduled_time` ("HH:MM") string. |
+| Priority-based scheduling *(optional extension)* | `Scheduler.sort_by_priority_then_time()` | Sorts *all* tasks (not just pending ones) by priority first (high → medium → low), breaking ties within the same priority by `scheduled_time`. See [Priority-Based Scheduling](#optional-extension-priority-based-scheduling) below. |
 | Priority/time-budget scheduling | `Scheduler.generate_plan()` | Sorts pending tasks by priority (ties broken by shorter duration first) and greedily fills the owner's `available_minutes`, skipping tasks that don't fit. |
 | Filtering | `Scheduler.filter_tasks()` | Filters `(pet, task)` pairs by pet name and/or completion status. |
 | Conflict handling | `Scheduler.detect_conflicts()` | Flags tasks that share the same `due_date` + `scheduled_time` as a warning message; does not detect partial/overlapping-duration conflicts (see `reflection.md` 2b for why). |
@@ -196,6 +203,16 @@ All tasks sorted by scheduled time:
 19:30 - Evening meds
 20:00 - Brushing
 
+All tasks sorted by priority, then by time:
+
+[HIGH  ] 08:00 - Morning walk
+[HIGH  ] 08:15 - Feeding
+[HIGH  ] 08:30 - Breakfast
+[HIGH  ] 19:30 - Evening meds
+[MEDIUM] 12:00 - Litter box cleaning
+[LOW   ] 17:00 - Fetch in the yard
+[LOW   ] 20:00 - Brushing
+
 Filtered: Mochi's tasks only:
 
 Mochi: Morning walk
@@ -228,6 +245,52 @@ Next available slot: 08:45
 Saved Jordan's data to demo_data.json.
 Reloaded owner 'Jordan' with 2 pets and 9 total tasks.
 ```
+
+## Optional Extension: Priority-Based Scheduling
+
+`Task` already carries a `priority` field (`"low"`, `"medium"`, or `"high"`); this extension adds a second
+sorting algorithm — `Scheduler.sort_by_priority_then_time(tasks)` — that goes beyond simple chronological
+sorting: it sorts by priority first, and only falls back to `scheduled_time` to break ties *within* the same
+priority level. This is different from `generate_plan()`, which sorts *pending* tasks by priority (ties
+broken by shortest duration) in order to greedily fill the owner's available minutes — the new method sorts
+*every* task (pending or completed) purely for display, with time as the tiebreaker instead of duration.
+
+**How it works:** tasks are sorted with a compound key — `(PRIORITY_ORDER[task.priority], task.scheduled_time)`
+— where `PRIORITY_ORDER` maps `"high"` → 0, `"medium"` → 1, `"low"` → 2, so high-priority tasks always sort
+before medium and low regardless of what time they're scheduled, and same-priority tasks fall back to
+chronological order.
+
+**Files modified:** `pawpal_system.py` (new `Scheduler.sort_by_priority_then_time` method), `main.py` (CLI
+demo), `app.py` ("All Tasks — Sorted by Priority, then Time" table), `tests/test_pawpal.py` (3 new tests).
+
+**CLI output example** — given the same tasks as the "sorted by time" demo above, but now grouped by
+priority first:
+
+```
+All tasks sorted by scheduled time:
+
+08:00 - Morning walk
+08:15 - Feeding
+08:30 - Breakfast
+12:00 - Litter box cleaning
+17:00 - Fetch in the yard
+19:30 - Evening meds
+20:00 - Brushing
+
+All tasks sorted by priority, then by time:
+
+[HIGH  ] 08:00 - Morning walk
+[HIGH  ] 08:15 - Feeding
+[HIGH  ] 08:30 - Breakfast
+[HIGH  ] 19:30 - Evening meds
+[MEDIUM] 12:00 - Litter box cleaning
+[LOW   ] 17:00 - Fetch in the yard
+[LOW   ] 20:00 - Brushing
+```
+
+Notice how "Evening meds" (19:30, high priority) moves up above "Litter box cleaning" (12:00, medium
+priority) — pure time-sorting would put it last, but priority-based sorting keeps all four high-priority
+tasks together first, still ordered chronologically among themselves.
 
 ## Optional Extension: Next Available Slot Finder
 
