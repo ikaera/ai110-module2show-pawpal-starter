@@ -171,6 +171,10 @@ class Scheduler:
         # both halves are always zero-padded to 2 digits (e.g. "09:00" < "10:00").
         return sorted(tasks, key=lambda t: t.scheduled_time)
 
+    def sort_by_priority_then_time(self, tasks: List[Task]) -> List[Task]:
+        """Return tasks sorted by priority (high, then medium, then low), ties broken by scheduled_time."""
+        return sorted(tasks, key=lambda t: (PRIORITY_ORDER.get(t.priority, 99), t.scheduled_time))
+
     def detect_conflicts(self, owner: Owner) -> List[str]:
         """Return a warning message for each due_date + scheduled_time shared by more than one task."""
         tasks_by_slot: dict = {}

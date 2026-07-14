@@ -35,6 +35,11 @@ print("\nAll tasks sorted by scheduled time:\n")
 for task in scheduler.sort_by_time(all_tasks):
     print(f"{task.scheduled_time} - {task.title}")
 
+# --- Priority scheduling demo: sort by priority first, ties broken by scheduled time. ---
+print("\nAll tasks sorted by priority, then by time:\n")
+for task in scheduler.sort_by_priority_then_time(all_tasks):
+    print(f"[{task.priority.upper():6}] {task.scheduled_time} - {task.title}")
+
 # --- Filtering demo: only Mochi's tasks, then only incomplete tasks. ---
 print("\nFiltered: Mochi's tasks only:\n")
 for pet, task in scheduler.filter_tasks(owner.get_all_tasks(), pet_name="Mochi"):
