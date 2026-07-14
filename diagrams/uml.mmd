@@ -13,3 +13,35 @@ classDiagram
     }
 
     ClassName --> AnotherClass : relationship
+
+%% ---- Draft below: PawPal+ classes (Step 3 draft, one pet per owner) ----
+
+classDiagram
+    class Owner {
+        +string name
+        +int available_minutes
+        +string preferences
+    }
+
+    class Pet {
+        +string name
+        +string species
+        +List~Task~ tasks
+        +add_task(task) None
+    }
+
+    class Task {
+        +string title
+        +int duration_minutes
+        +string priority
+        +string category
+    }
+
+    class Planner {
+        +generate_plan(pet, owner) list
+    }
+
+    Owner "1" --> "1" Pet : has
+    Pet "1" o-- "0..*" Task : contains
+    Planner ..> Pet : uses
+    Planner ..> Owner : uses
