@@ -3,6 +3,7 @@ from datetime import date, time
 
 import streamlit as st
 
+from formatting import CATEGORY_EMOJIS, category_label, priority_label, status_emoji
 from pawpal_system import Task, Pet, Owner, Scheduler
 
 DATA_FILE = "data.json"
@@ -61,7 +62,7 @@ if owner.pets:
     selected_pet_name = st.selectbox("Which pet is this task for?", pet_names)
     pet = next(p for p in owner.pets if p.name == selected_pet_name)
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         task_title = st.text_input("Task title", value="Morning walk")
     with col2:
@@ -69,8 +70,10 @@ if owner.pets:
     with col3:
         priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
     with col4:
-        scheduled_time = st.time_input("Scheduled time", value=time(9, 0))
+        category = st.selectbox("Category", list(CATEGORY_EMOJIS.keys()), index=0)
     with col5:
+        scheduled_time = st.time_input("Scheduled time", value=time(9, 0))
+    with col6:
         frequency = st.selectbox("Frequency", ["once", "daily", "weekly"], index=0)
 
     if st.button("Add task"):
@@ -79,7 +82,7 @@ if owner.pets:
                 title=task_title,
                 duration_minutes=int(duration),
                 priority=priority,
-                category="general",
+                category=category,
                 frequency=frequency,
                 scheduled_time=scheduled_time.strftime("%H:%M"),
             )
@@ -91,10 +94,10 @@ if owner.pets:
         for task in pet.tasks:
             t_col1, t_col2 = st.columns([4, 1])
             with t_col1:
-                status = "✅" if task.completed else "⬜"
                 st.write(
-                    f"{status} **{task.scheduled_time}** — {task.title} "
-                    f"({task.duration_minutes} min, {task.priority} priority, {task.frequency})"
+                    f"{status_emoji(task.completed)} **{task.scheduled_time}** — {task.title} "
+                    f"({category_label(task.category)}, {priority_label(task.priority)}, "
+                    f"{task.duration_minutes} min, {task.frequency})"
                 )
             with t_col2:
                 if not task.completed and st.button("Mark done", key=f"complete-{pet.name}-{id(task)}"):
@@ -120,8 +123,9 @@ if all_tasks:
             {
                 "time": t.scheduled_time,
                 "title": t.title,
-                "priority": t.priority,
-                "completed": t.completed,
+                "category": category_label(t.category),
+                "priority": priority_label(t.priority),
+                "status": status_emoji(t.completed),
             }
             for t in sorted_tasks
         ]
@@ -137,10 +141,11 @@ if all_tasks:
     st.table(
         [
             {
-                "priority": t.priority,
+                "priority": priority_label(t.priority),
                 "time": t.scheduled_time,
                 "title": t.title,
-                "completed": t.completed,
+                "category": category_label(t.category),
+                "status": status_emoji(t.completed),
             }
             for t in priority_sorted_tasks
         ]
@@ -164,7 +169,13 @@ filtered = scheduler.filter_tasks(
 if filtered:
     st.table(
         [
-            {"pet": pet.name, "time": task.scheduled_time, "title": task.title, "completed": task.completed}
+            {
+                "pet": pet.name,
+                "time": task.scheduled_time,
+                "title": task.title,
+                "priority": priority_label(task.priority),
+                "status": status_emoji(task.completed),
+            }
             for pet, task in filtered
         ]
     )
@@ -177,9 +188,9 @@ st.subheader("Scheduling Conflicts")
 conflicts = scheduler.detect_conflicts(owner)
 if conflicts:
     for warning in conflicts:
-        st.warning(warning)
+        st.warning(f"⚠️ {warning}")
 else:
-    st.success("No conflicts detected.")
+    st.success("✅ No conflicts detected.")
 
 st.divider()
 
@@ -190,9 +201,9 @@ slot_duration = st.number_input("New task duration (minutes)", min_value=1, max_
 if st.button("Find next available slot"):
     slot = scheduler.find_next_available_slot(owner, due_date=date.today(), duration_minutes=int(slot_duration))
     if slot:
-        st.success(f"Next available slot: {slot}")
+        st.success(f"🕒 Next available slot: {slot}")
     else:
-        st.warning("No slot available today.")
+        st.warning("🕒 No slot available today.")
 
 st.divider()
 
@@ -204,8 +215,11 @@ if st.button("Generate schedule"):
     if not plan:
         st.info("No pending tasks to schedule.")
     for item in plan:
-        message = f"{item.pet_name}: {item.task.title} ({item.task.duration_minutes} min) — {item.reason}"
+        message = (
+            f"{category_label(item.task.category)} {item.pet_name}: {item.task.title} "
+            f"({priority_label(item.task.priority)}, {item.task.duration_minutes} min) — {item.reason}"
+        )
         if item.included:
-            st.success(message)
+            st.success(f"✅ {message}")
         else:
-            st.warning(message)
+            st.warning(f"⏭️ {message}")

@@ -19,6 +19,8 @@ sorting, filtering, recurring tasks, conflict detection, and a time-budgeted dai
   pet's day that's long enough for a new task *(optional extension)*
 - **Data persistence** — `Owner.save_to_json()` / `Owner.load_from_json()` save/restore pets and tasks to/from
   `data.json` so nothing is lost between app runs *(optional extension)*
+- **Professional formatting** — category emojis, color-coded priority indicators, completion checkmarks, and
+  `tabulate`-powered CLI tables make output easier to scan at a glance *(optional extension)*
 - **Automated test suite** — 24 pytest tests covering happy paths and edge cases for every algorithm above
 
 ## Scenario
@@ -69,13 +71,15 @@ including sorting, filtering, recurrence, and conflict detection.
 ```
 Today's Schedule for Jordan (90 min available):
 
-[OK] Mochi: Evening meds (5 min) - Included: high priority, fits in remaining 90 min
-[OK] Mochi: Breakfast (10 min) - Included: high priority, fits in remaining 85 min
-[OK] Whiskers: Feeding (10 min) - Included: high priority, fits in remaining 75 min
-[OK] Mochi: Morning walk (30 min) - Included: high priority, fits in remaining 65 min
-[OK] Whiskers: Litter box cleaning (10 min) - Included: medium priority, fits in remaining 35 min
-[OK] Whiskers: Brushing (15 min) - Included: low priority, fits in remaining 25 min
-[SKIP] Mochi: Fetch in the yard (40 min) - Skipped: needs 40 min, only 10 min remaining
+Status    Pet       Task                 Category      Priority    Duration    Reason
+--------  --------  -------------------  ------------  ----------  ----------  ---------------------------------------------------
+✅ OK      Mochi     Evening meds         💊 meds        🔴 HIGH      5 min       Included: high priority, fits in remaining 90 min
+✅ OK      Mochi     Breakfast            🍖 feeding     🔴 HIGH      10 min      Included: high priority, fits in remaining 85 min
+✅ OK      Whiskers  Feeding              🍖 feeding     🔴 HIGH      10 min      Included: high priority, fits in remaining 75 min
+✅ OK      Mochi     Morning walk         🚶 walk        🔴 HIGH      30 min      Included: high priority, fits in remaining 65 min
+✅ OK      Whiskers  Litter box cleaning  🧼 grooming    🟡 MEDIUM    10 min      Included: medium priority, fits in remaining 35 min
+✅ OK      Whiskers  Brushing             🧼 grooming    🟢 LOW       15 min      Included: low priority, fits in remaining 25 min
+⏭️  SKIP  Mochi     Fetch in the yard    🎾 enrichment  🟢 LOW       40 min      Skipped: needs 40 min, only 10 min remaining
 ```
 
 ## Testing PawPal+
@@ -165,6 +169,9 @@ All core scheduling behaviors — sorting, priority-based scheduling, recurrence
   messages, skipped ones as yellow warnings explaining why
 - Click **Find next available slot** *(optional extension)* to get the earliest open gap today that's long
   enough for a new task of the given duration
+- **Professional formatting** *(optional extension)*: tasks are tagged with a category emoji (🚶 walk,
+  🍖 feeding, 💊 meds, 🎾 enrichment, 🧼 grooming) and a color-coded priority indicator (🔴 HIGH, 🟡 MEDIUM,
+  🟢 LOW), and a ✅/⬜ shows completion status at a glance
 
 **Example workflow:**
 
@@ -185,33 +192,39 @@ All core scheduling behaviors — sorting, priority-based scheduling, recurrence
 ```
 Today's Schedule for Jordan (90 min available):
 
-[OK] Mochi: Evening meds (5 min) - Included: high priority, fits in remaining 90 min
-[OK] Mochi: Breakfast (10 min) - Included: high priority, fits in remaining 85 min
-[OK] Whiskers: Feeding (10 min) - Included: high priority, fits in remaining 75 min
-[OK] Mochi: Morning walk (30 min) - Included: high priority, fits in remaining 65 min
-[OK] Whiskers: Litter box cleaning (10 min) - Included: medium priority, fits in remaining 35 min
-[OK] Whiskers: Brushing (15 min) - Included: low priority, fits in remaining 25 min
-[SKIP] Mochi: Fetch in the yard (40 min) - Skipped: needs 40 min, only 10 min remaining
+Status    Pet       Task                 Category      Priority    Duration    Reason
+--------  --------  -------------------  ------------  ----------  ----------  ---------------------------------------------------
+✅ OK      Mochi     Evening meds         💊 meds        🔴 HIGH      5 min       Included: high priority, fits in remaining 90 min
+✅ OK      Mochi     Breakfast            🍖 feeding     🔴 HIGH      10 min      Included: high priority, fits in remaining 85 min
+✅ OK      Whiskers  Feeding              🍖 feeding     🔴 HIGH      10 min      Included: high priority, fits in remaining 75 min
+✅ OK      Mochi     Morning walk         🚶 walk        🔴 HIGH      30 min      Included: high priority, fits in remaining 65 min
+✅ OK      Whiskers  Litter box cleaning  🧼 grooming    🟡 MEDIUM    10 min      Included: medium priority, fits in remaining 35 min
+✅ OK      Whiskers  Brushing             🧼 grooming    🟢 LOW       15 min      Included: low priority, fits in remaining 25 min
+⏭️  SKIP  Mochi     Fetch in the yard    🎾 enrichment  🟢 LOW       40 min      Skipped: needs 40 min, only 10 min remaining
 
 All tasks sorted by scheduled time:
 
-08:00 - Morning walk
-08:15 - Feeding
-08:30 - Breakfast
-12:00 - Litter box cleaning
-17:00 - Fetch in the yard
-19:30 - Evening meds
-20:00 - Brushing
+Time    Task                 Category      Priority
+------  -------------------  ------------  ----------
+08:00   Morning walk         🚶 walk        🔴 HIGH
+08:15   Feeding              🍖 feeding     🔴 HIGH
+08:30   Breakfast            🍖 feeding     🔴 HIGH
+12:00   Litter box cleaning  🧼 grooming    🟡 MEDIUM
+17:00   Fetch in the yard    🎾 enrichment  🟢 LOW
+19:30   Evening meds         💊 meds        🔴 HIGH
+20:00   Brushing             🧼 grooming    🟢 LOW
 
 All tasks sorted by priority, then by time:
 
-[HIGH  ] 08:00 - Morning walk
-[HIGH  ] 08:15 - Feeding
-[HIGH  ] 08:30 - Breakfast
-[HIGH  ] 19:30 - Evening meds
-[MEDIUM] 12:00 - Litter box cleaning
-[LOW   ] 17:00 - Fetch in the yard
-[LOW   ] 20:00 - Brushing
+Priority    Time    Task                 Category
+----------  ------  -------------------  ------------
+🔴 HIGH      08:00   Morning walk         🚶 walk
+🔴 HIGH      08:15   Feeding              🍖 feeding
+🔴 HIGH      08:30   Breakfast            🍖 feeding
+🔴 HIGH      19:30   Evening meds         💊 meds
+🟡 MEDIUM    12:00   Litter box cleaning  🧼 grooming
+🟢 LOW       17:00   Fetch in the yard    🎾 enrichment
+🟢 LOW       20:00   Brushing             🧼 grooming
 
 Filtered: Mochi's tasks only:
 
@@ -231,19 +244,19 @@ Whiskers: Feeding
 Whiskers: Litter box cleaning
 
 Completing 'Morning walk' (due 2026-07-14, frequency=daily)
-Completed: True
-Next occurrence created for 2026-07-15 (completed=False)
+✅ Completed: True
+🔁 Next occurrence created for 2026-07-15 (completed=False)
 
 Checking for scheduling conflicts:
 
-WARNING: Conflict on 2026-07-14 at 08:30: Mochi's 'Breakfast', Whiskers's 'Play session'
+⚠️  Conflict on 2026-07-14 at 08:30: Mochi's 'Breakfast', Whiskers's 'Play session'
 
 Finding next available 20-minute slot for Mochi today:
 
-Next available slot: 08:45
+🕒 Next available slot: 08:45
 
-Saved Jordan's data to demo_data.json.
-Reloaded owner 'Jordan' with 2 pets and 9 total tasks.
+💾 Saved Jordan's data to demo_data.json.
+💾 Reloaded owner 'Jordan' with 2 pets and 9 total tasks.
 ```
 
 ## Optional Extension: Priority-Based Scheduling
@@ -269,28 +282,34 @@ priority first:
 ```
 All tasks sorted by scheduled time:
 
-08:00 - Morning walk
-08:15 - Feeding
-08:30 - Breakfast
-12:00 - Litter box cleaning
-17:00 - Fetch in the yard
-19:30 - Evening meds
-20:00 - Brushing
+Time    Task                 Category      Priority
+------  -------------------  ------------  ----------
+08:00   Morning walk         🚶 walk        🔴 HIGH
+08:15   Feeding              🍖 feeding     🔴 HIGH
+08:30   Breakfast            🍖 feeding     🔴 HIGH
+12:00   Litter box cleaning  🧼 grooming    🟡 MEDIUM
+17:00   Fetch in the yard    🎾 enrichment  🟢 LOW
+19:30   Evening meds         💊 meds        🔴 HIGH
+20:00   Brushing             🧼 grooming    🟢 LOW
 
 All tasks sorted by priority, then by time:
 
-[HIGH  ] 08:00 - Morning walk
-[HIGH  ] 08:15 - Feeding
-[HIGH  ] 08:30 - Breakfast
-[HIGH  ] 19:30 - Evening meds
-[MEDIUM] 12:00 - Litter box cleaning
-[LOW   ] 17:00 - Fetch in the yard
-[LOW   ] 20:00 - Brushing
+Priority    Time    Task                 Category
+----------  ------  -------------------  ------------
+🔴 HIGH      08:00   Morning walk         🚶 walk
+🔴 HIGH      08:15   Feeding              🍖 feeding
+🔴 HIGH      08:30   Breakfast            🍖 feeding
+🔴 HIGH      19:30   Evening meds         💊 meds
+🟡 MEDIUM    12:00   Litter box cleaning  🧼 grooming
+🟢 LOW       17:00   Fetch in the yard    🎾 enrichment
+🟢 LOW       20:00   Brushing             🧼 grooming
 ```
 
 Notice how "Evening meds" (19:30, high priority) moves up above "Litter box cleaning" (12:00, medium
 priority) — pure time-sorting would put it last, but priority-based sorting keeps all four high-priority
-tasks together first, still ordered chronologically among themselves.
+tasks together first, still ordered chronologically among themselves. (The emoji/tabulate formatting shown
+here is from the [Professional UI and Output Formatting](#optional-extension-professional-ui-and-output-formatting)
+extension below — the sorting logic itself doesn't require it.)
 
 ## Optional Extension: Next Available Slot Finder
 
@@ -359,5 +378,52 @@ reasonable.
 `load_from_json` on `Owner`), `app.py` (load on session start, save after every mutation), `main.py` (save/
 reload demo), `tests/test_pawpal.py` (3 new tests: round-trip, missing file, no-pets edge case), `.gitignore`
 (excludes the runtime `data.json` — it's user data, not source).
+
+## Optional Extension: Professional UI and Output Formatting
+
+Raw text output is hard to scan — this extension adds category emojis, color-coded priority indicators, and
+completion checkmarks throughout both the CLI (`main.py`) and the Streamlit UI (`app.py`), plus structured
+tables in the CLI via the [`tabulate`](https://pypi.org/project/tabulate/) library.
+
+**Functions/libraries used:**
+
+- **`formatting.py`** *(new module)* — a small presentation-only helper module, kept separate from
+  `pawpal_system.py` so the logic layer stays free of display concerns:
+  - `CATEGORY_EMOJIS` maps each task category to an emoji: 🚶 walk, 🍖 feeding, 💊 meds, 🎾 enrichment,
+    🧼 grooming (falls back to 📋 for anything else).
+  - `PRIORITY_INDICATORS` maps each priority to a color-coded dot + label: 🔴 HIGH, 🟡 MEDIUM, 🟢 LOW.
+  - `category_label(category)`, `priority_label(priority)`, and `status_emoji(completed)` are the functions
+    both `main.py` and `app.py` call to render these consistently.
+- **`tabulate`** *(new dependency, added to `requirements.txt`)* — used in `main.py` to render the daily
+  schedule and both sorted-task listings as aligned CLI tables instead of one-line-per-task prints.
+- **Streamlit's built-in color coding** — `st.success()` (green) / `st.warning()` (yellow) were already used
+  for included vs. skipped plan items and conflict warnings; this extension layers emoji on top (✅/⏭️/⚠️/🕒/💾)
+  and adds a category selectbox to the "Add task" form so every task actually gets a matching emoji instead
+  of always being `"general"`.
+
+**Files modified:** `formatting.py` (new), `main.py` (tabulate tables + emoji prefixes throughout),
+`app.py` (emoji/priority labels in all task tables and messages, category selectbox added to the task form),
+`requirements.txt` (added `tabulate>=0.9`).
+
+**CLI output example** — the same "Today's Schedule" demo as above, now genuinely reflects what running
+`python main.py` prints (color/emoji indicators plus an aligned `tabulate` table):
+
+```
+Today's Schedule for Jordan (90 min available):
+
+Status    Pet       Task                 Category      Priority    Duration    Reason
+--------  --------  -------------------  ------------  ----------  ----------  ---------------------------------------------------
+✅ OK      Mochi     Evening meds         💊 meds        🔴 HIGH      5 min       Included: high priority, fits in remaining 90 min
+✅ OK      Mochi     Breakfast            🍖 feeding     🔴 HIGH      10 min      Included: high priority, fits in remaining 85 min
+✅ OK      Whiskers  Feeding              🍖 feeding     🔴 HIGH      10 min      Included: high priority, fits in remaining 75 min
+✅ OK      Mochi     Morning walk         🚶 walk        🔴 HIGH      30 min      Included: high priority, fits in remaining 65 min
+✅ OK      Whiskers  Litter box cleaning  🧼 grooming    🟡 MEDIUM    10 min      Included: medium priority, fits in remaining 35 min
+✅ OK      Whiskers  Brushing             🧼 grooming    🟢 LOW       15 min      Included: low priority, fits in remaining 25 min
+⏭️  SKIP  Mochi     Fetch in the yard    🎾 enrichment  🟢 LOW       40 min      Skipped: needs 40 min, only 10 min remaining
+```
+
+**Note on Windows terminals:** the default Windows console codepage (cp1252) can't encode emoji, so `main.py`
+reconfigures `sys.stdout` to UTF-8 at startup if it isn't already — without that, printing any of the tables
+above raises a `UnicodeEncodeError`.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
