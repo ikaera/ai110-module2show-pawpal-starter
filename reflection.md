@@ -94,6 +94,14 @@ This is a good example of a design changing mid-implementation for a legitimate 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+**Tradeoff: `Scheduler.detect_conflicts()` only checks for exact scheduled_time matches, not overlapping durations.**
+
+Two tasks are only flagged as a conflict if they share the exact same `(due_date, scheduled_time)` slot. A 30-minute task starting at 08:00 and a separate task starting at 08:15 would genuinely overlap in real life, but my scheduler won't catch that — it only compares start times, not start-time-plus-duration ranges.
+
+I chose this simplification deliberately rather than by accident. Real interval-overlap checking requires comparing every pair of tasks' `[start, start + duration]` ranges against each other, which is more code and a more expensive check (checking all pairs instead of grouping by a single key). For a busy pet owner with a handful of daily tasks, exact-time conflicts (e.g., accidentally scheduling two things at 8:00 AM) are the more common and more obviously avoidable mistake, while partial-overlap conflicts are a subtler edge case. Catching the common case with a simple, fast, easy-to-read implementation seemed like the right scope for this project, with full interval-overlap detection noted as a reasonable improvement for a future iteration rather than something this version needed to handle.
+
+I verified this method with AI assistance by running the actual demo script (`main.py`) rather than just reading the code — that surfaced a real bug where a recurring task's next-day occurrence was being flagged as conflicting with itself, because the first version of this method grouped only by `scheduled_time` and ignored `due_date` entirely. Running it, not just reading it, is what caught that.
+
 ---
 
 ## 3. AI Collaboration
