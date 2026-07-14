@@ -1,0 +1,59 @@
+%% Final UML — reflects pawpal_system.py after Phase 4 (algorithms) and Phase 5 (tests).
+%% Compare against diagrams/uml.mmd (Phase 1 draft) to see what changed:
+%%   - Task gained scheduled_time, due_date, and get_next_occurrence()
+%%   - Pet gained complete_task()
+%%   - Scheduler gained sort_by_time(), filter_tasks(), detect_conflicts()
+
+classDiagram
+    class Owner {
+        +string name
+        +int available_minutes
+        +List~Pet~ pets
+        +string preferences
+        +add_pet(pet) None
+        +get_all_tasks() List~Tuple~Pet, Task~~
+    }
+
+    class Pet {
+        +string name
+        +string species
+        +List~Task~ tasks
+        +add_task(task) None
+        +complete_task(task) Optional~Task~
+    }
+
+    class Task {
+        +string title
+        +int duration_minutes
+        +string priority
+        +string category
+        +string frequency
+        +bool completed
+        +string scheduled_time
+        +date due_date
+        +mark_complete() None
+        +get_next_occurrence() Optional~Task~
+    }
+
+    class PlannedItem {
+        +Task task
+        +string pet_name
+        +bool included
+        +string reason
+    }
+
+    class Scheduler {
+        +generate_plan(owner) List~PlannedItem~
+        +sort_by_time(tasks) List~Task~
+        +filter_tasks(pet_tasks, pet_name, completed) List~Tuple~Pet, Task~~
+        +detect_conflicts(owner) List~string~
+    }
+
+    Owner "1" o-- "0..*" Pet : manages
+    Pet "1" o-- "0..*" Task : contains
+    Task ..> Task : get_next_occurrence() creates
+    Pet ..> Task : complete_task() marks/creates
+    Scheduler ..> Owner : retrieves tasks via get_all_tasks()
+    Scheduler ..> Task : sorts, filters, and checks conflicts
+    Scheduler ..> PlannedItem : creates
+    PlannedItem "1" --> "1" Task : wraps

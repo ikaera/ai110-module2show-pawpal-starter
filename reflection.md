@@ -89,6 +89,10 @@ This is a good example of a design changing mid-implementation for a legitimate 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+The scheduler considers four constraints: the owner's `available_minutes` (a hard time budget), each task's `priority` (high/medium/low, the ordering signal), `completed` status (finished tasks are excluded from today's plan), and `scheduled_time` + `due_date` together (used for sorting and conflict detection, not for the plan itself).
+
+Time and priority mattered most because they map directly to the scenario: a busy owner has a fixed amount of time and needs the *most important* care tasks (meds, feeding) done first if everything can't fit. `generate_plan()` treats time as a hard ceiling — it's structurally enforced by decrementing `remaining_minutes` and refusing to include a task that doesn't fit — while priority is a soft ordering signal (ties broken by shorter duration, so more low-priority tasks can still squeeze in if time remains). `scheduled_time` and `due_date` were added later, once sorting and conflict detection were in scope, but they intentionally don't affect *which* tasks get chosen in `generate_plan()` — only priority and duration do — to keep the two concerns (what to include vs. when it happens) separate.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
@@ -111,10 +115,18 @@ I verified this method with AI assistance by running the actual demo script (`ma
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+I used my AI coding assistant across the full lifecycle: brainstorming the initial UML from user actions (Phase 1), drafting the algorithm implementations for sorting/filtering/recurrence/conflict detection (Phase 4), generating the pytest suite (Phase 5), and wiring the Streamlit UI plus polishing docs (Phase 6). The most effective feature wasn't any single suggestion — it was the assistant actually *running* the code after writing it (`python main.py`, `pytest`) instead of just producing code and assuming it worked. That closed-loop pattern (write → run → read the real output → fix) caught bugs a code-only review would have missed.
+
+The most useful prompts were the ones that asked for a *concrete edge case*, not a general review — e.g., "what happens if two tasks share the same time but different due_date?" produced a much more useful answer than "does this method look right?". Asking "why is this test failing — is the bug in my test or in `pawpal_system.py`?" (per the Phase 5 instructions) was also a good habit, since it forces an explicit diagnosis instead of a reflexive fix.
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+The clearest example is `Scheduler.detect_conflicts()` (see section 2b): the first implementation grouped tasks by `scheduled_time` alone. That looked correct on paper, but I didn't accept it purely from reading the code — I ran `main.py`'s recurrence demo, where completing a daily task creates a next-day occurrence at the *same* `scheduled_time`, and watched it get incorrectly flagged as conflicting with its own predecessor. That observed, wrong output was the evidence that the suggestion was incomplete; the fix (group by `(due_date, scheduled_time)` instead) came directly from diagnosing *why* the wrong output happened, not from a second guess. The lesson: for anything with real logic (not just boilerplate), I verify by executing it and inspecting actual output, not by trusting that plausible-looking code is correct.
+
+Working across dedicated phases (planning → implementation → testing → docs, each revisited as its own step even within one continuous session) also helped keep this honest — treating "write the tests" and "run the tests" as separate, sequential steps rather than assuming a test that was written must pass.
 
 ---
 
@@ -125,10 +137,18 @@ I verified this method with AI assistance by running the actual demo script (`ma
 - What behaviors did you test?
 - Why were these tests important?
 
+The 15-test suite in `tests/test_pawpal.py` covers the five algorithmic behaviors that make this scheduler "smart" rather than a plain to-do list: chronological sorting (`sort_by_time`), pet/status filtering (`filter_tasks`), daily recurrence (`get_next_occurrence`/`complete_task`), same-slot conflict detection (`detect_conflicts`), and priority/time-budget plan generation (`generate_plan`) — each with at least one happy-path case and one edge case (empty list, non-recurring task, no matching pet, zero available minutes, an owner with no pets).
+
+These were the tests worth writing precisely because they're not obviously correct just by reading the code — they involve stateful mutation (`complete_task` both marks a task complete *and* creates a new one), grouping logic that's easy to get subtly wrong (as the conflict-detection bug showed), and greedy ordering that depends on tie-breaking rules. A pet owner would trust whatever the plan says; a silent bug in any of these would produce a wrong schedule that looks plausible.
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
+
+I'd rate my confidence at 4/5 stars, matching the README's testing section. All 15 tests pass, and the algorithms have been exercised both as unit tests and end-to-end through `main.py` and the Streamlit UI. The one star held back is for known, documented gaps rather than unknown ones: `detect_conflicts()` only catches exact-time collisions, not overlapping durations (a 30-minute task at 08:00 won't be flagged against one starting at 08:15).
+
+With more time I'd test: overlapping-duration conflicts once that logic exists; `"weekly"` recurrence crossing a month or year boundary; a task whose `scheduled_time` is malformed (not zero-padded "HH:MM"), which would silently sort wrong since `sort_by_time` relies on string comparison; and multiple tasks tied on both priority *and* duration, to confirm the tie-break order is stable and doesn't depend on dict/list ordering quirks.
 
 ---
 
@@ -138,10 +158,16 @@ I verified this method with AI assistance by running the actual demo script (`ma
 
 - What part of this project are you most satisfied with?
 
+I'm most satisfied with catching the recurring-task conflict bug (section 2b/3b) by actually running the demo instead of stopping at a code read. It's a small bug, but it's exactly the kind of interaction-between-features bug (recurrence + conflict detection, two features built independently) that's easy to miss when each feature is tested in isolation, and it validated the whole "verify by running, not just reading" approach I used for the rest of the project.
+
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
 
+I'd implement real interval-overlap conflict detection (comparing `[scheduled_time, scheduled_time + duration]` ranges, not just exact start-time matches) since that's the most concrete gap left between what the scheduler does and what a pet owner would actually need. I'd also extend `generate_plan()` beyond a single "today" plan to look ahead across the recurring tasks it generates, so the owner could see tomorrow's plan already accounting for today's completions.
+
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+Being the "lead architect" meant the AI was fast at producing plausible-looking code and tests, but I was the one who had to define what "correct" meant (the acceptance criteria — e.g., "conflicts must consider due_date, not just time") and actually verify it by running things, not just accepting well-formatted output. The AI is very good at generating a first draft and even at explaining its own reasoning when asked, but it doesn't know what it doesn't know about the scenario's real-world implications (like same-time-different-date not being a real conflict) unless prompted to actually execute and check. That division of labor — AI for breadth and speed, me for judgment and verification — is what made the difference between code that looks right and code that is right.

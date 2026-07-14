@@ -1,6 +1,19 @@
 # PawPal+ (Module 2 Project)
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
+**PawPal+** is a Streamlit app that helps a pet owner plan care tasks across one or more pets —
+sorting, filtering, recurring tasks, conflict detection, and a time-budgeted daily plan.
+
+## Features
+
+- **Multi-pet task tracking** — add pets and tasks (title, duration, priority, category, scheduled time, frequency)
+- **Priority/time-budget scheduling** — `Scheduler.generate_plan()` fills the owner's available minutes with the
+  highest-priority tasks first, skipping (and explaining why) any that don't fit
+- **Sorting by time** — `Scheduler.sort_by_time()` lists every task chronologically by `scheduled_time`
+- **Filtering** — `Scheduler.filter_tasks()` narrows tasks by pet name and/or completion status
+- **Daily recurrence** — `Task.get_next_occurrence()` / `Pet.complete_task()` automatically creates the next
+  occurrence when a `"daily"` or `"weekly"` task is marked complete
+- **Conflict warnings** — `Scheduler.detect_conflicts()` flags any two tasks scheduled at the same date and time
+- **Automated test suite** — 15 pytest tests covering happy paths and edge cases for every algorithm above
 
 ## Scenario
 
@@ -42,9 +55,10 @@ pip install -r requirements.txt
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
 
-## 🖥️ Sample Output
+## Sample Output
 
-Output from running `python main.py`:
+Output from running `python main.py` — see the [Demo Walkthrough](#demo-walkthrough) below for the full run
+including sorting, filtering, recurrence, and conflict detection.
 
 ```
 Today's Schedule for Jordan (90 min available):
@@ -58,7 +72,7 @@ Today's Schedule for Jordan (90 min available):
 [SKIP] Mochi: Fetch in the yard (40 min) - Skipped: needs 40 min, only 10 min remaining
 ```
 
-## 🧪 Testing PawPal+
+## Testing PawPal+
 
 Run the full test suite from the project root:
 
@@ -101,13 +115,11 @@ tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [100%
 ============================== 15 passed in 0.05s ===============================
 ```
 
-**Confidence Level:** ⭐⭐⭐⭐☆ (4/5)
+**Confidence Level:** 4/5
 
 All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, and plan generation — are covered with both happy-path and edge-case tests, and all 15 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
 
-## 📐 Smarter Scheduling
-
-> Fill in once you've implemented scheduling logic.
+## Smarter Scheduling
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
@@ -117,14 +129,81 @@ All core scheduling behaviors — sorting, recurrence, conflict detection, filte
 | Conflict handling | `Scheduler.detect_conflicts()` | Flags tasks that share the same `due_date` + `scheduled_time` as a warning message; does not detect partial/overlapping-duration conflicts (see `reflection.md` 2b for why). |
 | Recurring tasks | `Task.get_next_occurrence()`, `Pet.complete_task()` | Completing a "daily"/"weekly" task automatically creates its next occurrence, with `due_date` advanced via `datetime.timedelta`. |
 
-## 📸 Demo Walkthrough
+## Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+**UI features (`app.py`):**
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+- Add pets (name + species) and tasks (title, duration, priority, scheduled time, frequency) to any pet
+- Mark a task done with the "Mark done" button — recurring (`daily`/`weekly`) tasks automatically spawn their
+  next occurrence, shown via a toast with the new due date
+- View **all tasks sorted by time** in one table
+- **Filter tasks** by pet and/or completion status
+- See **conflict warnings** whenever two tasks share the same date and time, or a success message
+  when there are none
+- Click **Generate schedule** to build today's time-budgeted plan — included tasks show as green success
+  messages, skipped ones as yellow warnings explaining why
+
+**Example workflow:**
+
+1. Add pet "Mochi" (dog) and pet "Whiskers" (cat).
+2. Add Mochi's tasks: "Morning walk" (30 min, high priority, 08:00, daily), "Breakfast" (10 min, high, 08:30).
+3. Add Whiskers' task "Play session" (15 min, medium, 08:30) — same time as Mochi's breakfast.
+4. Check the **Scheduling Conflicts** section — it flags the 08:30 clash between the two pets.
+5. Click **Generate schedule** — high-priority tasks are scheduled first within the owner's available minutes;
+   anything that doesn't fit is skipped with a reason.
+6. Mark "Morning walk" done — since it's `daily`, a new occurrence is created for tomorrow automatically.
+
+**Key Scheduler behaviors shown:** priority/time-budget planning (`generate_plan`), chronological sorting
+(`sort_by_time`), pet/status filtering (`filter_tasks`), daily recurrence (`get_next_occurrence` /
+`complete_task`), and same-slot conflict detection (`detect_conflicts`).
+
+**Sample CLI output** (`python main.py`), demonstrating the same algorithms outside the UI:
+
+```
+Today's Schedule for Jordan (90 min available):
+
+[OK] Mochi: Evening meds (5 min) - Included: high priority, fits in remaining 90 min
+[OK] Mochi: Breakfast (10 min) - Included: high priority, fits in remaining 85 min
+[OK] Whiskers: Feeding (10 min) - Included: high priority, fits in remaining 75 min
+[OK] Mochi: Morning walk (30 min) - Included: high priority, fits in remaining 65 min
+[OK] Whiskers: Litter box cleaning (10 min) - Included: medium priority, fits in remaining 35 min
+[OK] Whiskers: Brushing (15 min) - Included: low priority, fits in remaining 25 min
+[SKIP] Mochi: Fetch in the yard (40 min) - Skipped: needs 40 min, only 10 min remaining
+
+All tasks sorted by scheduled time:
+
+08:00 - Morning walk
+08:15 - Feeding
+08:30 - Breakfast
+12:00 - Litter box cleaning
+17:00 - Fetch in the yard
+19:30 - Evening meds
+20:00 - Brushing
+
+Filtered: Mochi's tasks only:
+
+Mochi: Morning walk
+Mochi: Evening meds
+Mochi: Breakfast
+Mochi: Fetch in the yard
+
+Filtered: incomplete tasks only:
+
+Mochi: Morning walk
+Mochi: Evening meds
+Mochi: Breakfast
+Mochi: Fetch in the yard
+Whiskers: Brushing
+Whiskers: Feeding
+Whiskers: Litter box cleaning
+
+Completing 'Morning walk' (due 2026-07-14, frequency=daily)
+Completed: True
+Next occurrence created for 2026-07-15 (completed=False)
+
+Checking for scheduling conflicts:
+
+WARNING: Conflict on 2026-07-14 at 08:30: Mochi's 'Breakfast', Whiskers's 'Play session'
+```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
