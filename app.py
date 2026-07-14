@@ -1,8 +1,11 @@
+import os
 from datetime import date, time
 
 import streamlit as st
 
 from pawpal_system import Task, Pet, Owner, Scheduler
+
+DATA_FILE = "data.json"
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -25,9 +28,14 @@ owner_name = st.text_input("Owner name", value="Jordan")
 available_minutes = st.number_input("Available time today (minutes)", min_value=1, max_value=600, value=60)
 
 # Create the Owner once per session; reused on every rerun instead of being
-# rebuilt from scratch each time Streamlit reruns the script.
+# rebuilt from scratch each time Streamlit reruns the script. If a data.json
+# from a previous run exists, load it so pets/tasks persist across restarts.
 if "owner" not in st.session_state:
-    st.session_state.owner = Owner(name=owner_name, available_minutes=available_minutes)
+    if os.path.exists(DATA_FILE):
+        st.session_state.owner = Owner.load_from_json(DATA_FILE)
+        st.toast(f"Loaded saved data from {DATA_FILE}.")
+    else:
+        st.session_state.owner = Owner(name=owner_name, available_minutes=available_minutes)
 
 owner = st.session_state.owner
 
@@ -37,6 +45,7 @@ species = st.selectbox("Species", ["dog", "cat", "other"])
 
 if st.button("Add pet"):
     owner.add_pet(Pet(name=pet_name, species=species))
+    owner.save_to_json(DATA_FILE)
 
 if owner.pets:
     st.write("Current pets:")
@@ -75,6 +84,7 @@ if owner.pets:
                 scheduled_time=scheduled_time.strftime("%H:%M"),
             )
         )
+        owner.save_to_json(DATA_FILE)
 
     if pet.tasks:
         st.write(f"Current tasks for {pet.name}:")
@@ -89,6 +99,7 @@ if owner.pets:
             with t_col2:
                 if not task.completed and st.button("Mark done", key=f"complete-{pet.name}-{id(task)}"):
                     next_task = pet.complete_task(task)
+                    owner.save_to_json(DATA_FILE)
                     if next_task is not None:
                         st.toast(f"Recurring task — next occurrence created for {next_task.due_date}.")
                     st.rerun()

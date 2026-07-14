@@ -15,7 +15,9 @@ sorting, filtering, recurring tasks, conflict detection, and a time-budgeted dai
 - **Conflict warnings** — `Scheduler.detect_conflicts()` flags any two tasks scheduled at the same date and time
 - **Next available slot finder** — `Scheduler.find_next_available_slot()` finds the earliest open gap in a
   pet's day that's long enough for a new task *(optional extension)*
-- **Automated test suite** — 18 pytest tests covering happy paths and edge cases for every algorithm above
+- **Data persistence** — `Owner.save_to_json()` / `Owner.load_from_json()` save/restore pets and tasks to/from
+  `data.json` so nothing is lost between app runs *(optional extension)*
+- **Automated test suite** — 21 pytest tests covering happy paths and edge cases for every algorithm above
 
 ## Scenario
 
@@ -82,7 +84,7 @@ Run the full test suite from the project root:
 python -m pytest
 ```
 
-The suite (`tests/test_pawpal.py`, 18 tests) covers:
+The suite (`tests/test_pawpal.py`, 21 tests) covers:
 
 - **Core behaviors**: marking a task complete, adding a task to a pet
 - **Sorting**: tasks are returned in chronological order by `scheduled_time`, including the empty-list edge case
@@ -91,39 +93,43 @@ The suite (`tests/test_pawpal.py`, 18 tests) covers:
 - **Filtering**: filtering `(pet, task)` pairs by pet name and/or completion status, including a no-match edge case
 - **Plan generation**: tasks that don't fit the owner's available time are skipped, completed tasks are excluded, and an owner with no pets produces an empty plan
 - **Next available slot**: finds the gap between two tasks, returns `None` when the day is fully booked, and ignores completed tasks when checking for conflicts
+- **Persistence**: saving and reloading an owner (with pets, tasks, and a completed task) round-trips correctly, loading a missing file raises `FileNotFoundError`, and an owner with no pets saves/loads cleanly
 
 Sample test output:
 
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.13.3, pytest-9.1.1, pluggy-1.6.0
-collecting ... collected 18 items
+collecting ... collected 21 items
 
-tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [  5%]
-tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [ 11%]
-tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 16%]
-tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 22%]
-tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 27%]
-tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 33%]
-tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 38%]
-tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 44%]
-tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 50%]
-tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 55%]
-tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 61%]
-tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 66%]
-tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 72%]
-tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 77%]
-tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [ 83%]
-tests/test_pawpal.py::test_find_next_available_slot_returns_gap_between_tasks PASSED [ 88%]
-tests/test_pawpal.py::test_find_next_available_slot_returns_none_when_day_is_full PASSED [ 94%]
-tests/test_pawpal.py::test_find_next_available_slot_ignores_completed_tasks PASSED [100%]
+tests/test_pawpal.py::test_task_mark_complete_changes_status PASSED      [  4%]
+tests/test_pawpal.py::test_adding_task_increases_pet_task_count PASSED   [  9%]
+tests/test_pawpal.py::test_sort_by_time_returns_chronological_order PASSED [ 14%]
+tests/test_pawpal.py::test_sort_by_time_handles_empty_list PASSED        [ 19%]
+tests/test_pawpal.py::test_completing_daily_task_creates_next_day_occurrence PASSED [ 23%]
+tests/test_pawpal.py::test_completing_task_with_no_recurrence_creates_nothing PASSED [ 28%]
+tests/test_pawpal.py::test_detect_conflicts_flags_tasks_at_same_date_and_time PASSED [ 33%]
+tests/test_pawpal.py::test_detect_conflicts_ignores_same_time_on_different_dates PASSED [ 38%]
+tests/test_pawpal.py::test_detect_conflicts_returns_empty_list_when_no_overlaps PASSED [ 42%]
+tests/test_pawpal.py::test_filter_tasks_by_pet_name PASSED               [ 47%]
+tests/test_pawpal.py::test_filter_tasks_by_completed_status PASSED       [ 52%]
+tests/test_pawpal.py::test_filter_tasks_with_no_matching_pet_returns_empty_list PASSED [ 57%]
+tests/test_pawpal.py::test_generate_plan_skips_tasks_that_dont_fit_available_time PASSED [ 61%]
+tests/test_pawpal.py::test_generate_plan_excludes_already_completed_tasks PASSED [ 66%]
+tests/test_pawpal.py::test_generate_plan_handles_owner_with_no_pets PASSED [ 71%]
+tests/test_pawpal.py::test_find_next_available_slot_returns_gap_between_tasks PASSED [ 76%]
+tests/test_pawpal.py::test_find_next_available_slot_returns_none_when_day_is_full PASSED [ 80%]
+tests/test_pawpal.py::test_find_next_available_slot_ignores_completed_tasks PASSED [ 85%]
+tests/test_pawpal.py::test_save_and_load_json_round_trip PASSED          [ 90%]
+tests/test_pawpal.py::test_load_from_json_missing_file_raises PASSED     [ 95%]
+tests/test_pawpal.py::test_save_to_json_handles_owner_with_no_pets PASSED [100%]
 
-============================== 18 passed in 0.06s ===============================
+============================= 21 passed in 0.07s ===============================
 ```
 
 **Confidence Level:** 4/5
 
-All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, plan generation, and next-available-slot lookup — are covered with both happy-path and edge-case tests, and all 18 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
+All core scheduling behaviors — sorting, recurrence, conflict detection, filtering, plan generation, next-available-slot lookup, and JSON persistence — are covered with both happy-path and edge-case tests, and all 21 pass. One star held back because `detect_conflicts()` only catches exact-time collisions, not partial/overlapping-duration conflicts (documented as a known limitation in `reflection.md`), so it isn't yet a fully reliable conflict guard for real-world scheduling.
 
 ## Smarter Scheduling
 
@@ -135,6 +141,7 @@ All core scheduling behaviors — sorting, recurrence, conflict detection, filte
 | Conflict handling | `Scheduler.detect_conflicts()` | Flags tasks that share the same `due_date` + `scheduled_time` as a warning message; does not detect partial/overlapping-duration conflicts (see `reflection.md` 2b for why). |
 | Recurring tasks | `Task.get_next_occurrence()`, `Pet.complete_task()` | Completing a "daily"/"weekly" task automatically creates its next occurrence, with `due_date` advanced via `datetime.timedelta`. |
 | Next available slot *(optional extension)* | `Scheduler.find_next_available_slot()` | Converts every task's `scheduled_time` to minutes-since-midnight, walks the gaps between them (and before the first / after the last), and returns the earliest "HH:MM" gap that's at least as long as the requested duration, or `None` if the day (bounded by `day_start`/`day_end`) has no room left. Ignores completed tasks. |
+| Data persistence *(optional extension)* | `Owner.save_to_json()`, `Owner.load_from_json()` | Serializes the full owner → pets → tasks tree to `data.json` and rebuilds it on load, so pets and tasks survive between app runs. See [Data Persistence](#data-persistence) below. |
 
 ## Demo Walkthrough
 
@@ -217,6 +224,9 @@ WARNING: Conflict on 2026-07-14 at 08:30: Mochi's 'Breakfast', Whiskers's 'Play 
 Finding next available 20-minute slot for Mochi today:
 
 Next available slot: 08:45
+
+Saved Jordan's data to demo_data.json.
+Reloaded owner 'Jordan' with 2 pets and 9 total tasks.
 ```
 
 ## Optional Extension: Next Available Slot Finder
@@ -250,5 +260,41 @@ Finding next available 20-minute slot for Mochi today:
 
 No slot available today.
 ```
+
+## Optional Extension: Data Persistence
+
+By default, everything an owner builds up in the Streamlit app — pets, tasks, priorities, completion status —
+disappears the moment the app process restarts, because it only lives in `st.session_state`. This extension
+adds a `data.json` file so that state survives between runs.
+
+**How it works — the persistence workflow:**
+
+1. Every model class gets a matching pair of methods: `to_dict()` converts an instance (and everything it
+   owns) into plain dicts/lists/strings that `json.dump` can handle, and `from_dict()` rebuilds an instance
+   from that same shape.
+   - `Task.to_dict()` / `Task.from_dict()` handle the one tricky field: `due_date` is a `datetime.date`
+     object, which isn't JSON-serializable on its own, so it's stored as an ISO string (`date.isoformat()`)
+     and parsed back with `date.fromisoformat()`.
+   - `Pet.to_dict()` / `Pet.from_dict()` nest a list of `Task` dicts.
+   - `Owner.to_dict()` / `Owner.from_dict()` nest a list of `Pet` dicts — so one call serializes the entire
+     owner → pets → tasks tree.
+2. `Owner.save_to_json(filepath="data.json")` calls `self.to_dict()` and writes the result with `json.dump`.
+3. `Owner.load_from_json(filepath="data.json")` (a classmethod) reads the file with `json.load` and calls
+   `Owner.from_dict()` to reconstruct a live `Owner` object, including all of its `Pet` and `Task` objects.
+4. In `app.py`, the owner is loaded from `data.json` on first run of a session (if the file exists) instead of
+   always starting blank, and `owner.save_to_json()` is called immediately after every mutation — adding a
+   pet, adding a task, marking a task done — so the file is always up to date. `main.py` has a small demo
+   that saves to a throwaway `demo_data.json`, reloads it, prints the counts, and deletes the file again.
+
+A **custom dictionary conversion** was used instead of a library like `marshmallow`: the object graph here is
+shallow (three classes, one level of nesting each) and every field is already a JSON-friendly type except
+`due_date`, so a schema library would add a dependency and boilerplate without solving a real problem. If the
+`Task`/`Pet`/`Owner` models grow much more nested or gain more custom types, revisiting that decision would be
+reasonable.
+
+**Files modified:** `pawpal_system.py` (`to_dict`/`from_dict` on `Task`, `Pet`, `Owner`; `save_to_json`/
+`load_from_json` on `Owner`), `app.py` (load on session start, save after every mutation), `main.py` (save/
+reload demo), `tests/test_pawpal.py` (3 new tests: round-trip, missing file, no-pets edge case), `.gitignore`
+(excludes the runtime `data.json` — it's user data, not source).
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->

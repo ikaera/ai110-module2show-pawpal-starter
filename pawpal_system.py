@@ -1,5 +1,6 @@
 """PawPal+ logic layer: pet care task tracking and daily plan scheduling."""
 
+import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import List, Optional, Tuple
@@ -39,6 +40,33 @@ class Task:
             due_date=self.due_date + interval,
         )
 
+    def to_dict(self) -> dict:
+        """Convert this task to a JSON-serializable dictionary."""
+        return {
+            "title": self.title,
+            "duration_minutes": self.duration_minutes,
+            "priority": self.priority,
+            "category": self.category,
+            "frequency": self.frequency,
+            "completed": self.completed,
+            "scheduled_time": self.scheduled_time,
+            "due_date": self.due_date.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Task":
+        """Rebuild a Task from a dictionary produced by to_dict()."""
+        return cls(
+            title=data["title"],
+            duration_minutes=data["duration_minutes"],
+            priority=data["priority"],
+            category=data["category"],
+            frequency=data.get("frequency", "daily"),
+            completed=data.get("completed", False),
+            scheduled_time=data.get("scheduled_time", "09:00"),
+            due_date=date.fromisoformat(data["due_date"]),
+        )
+
 
 @dataclass
 class Pet:
@@ -49,6 +77,21 @@ class Pet:
     def add_task(self, task: Task) -> None:
         """Add a care task to this pet's task list."""
         self.tasks.append(task)
+
+    def to_dict(self) -> dict:
+        """Convert this pet (and its tasks) to a JSON-serializable dictionary."""
+        return {
+            "name": self.name,
+            "species": self.species,
+            "tasks": [task.to_dict() for task in self.tasks],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Pet":
+        """Rebuild a Pet (and its tasks) from a dictionary produced by to_dict()."""
+        pet = cls(name=data["name"], species=data["species"])
+        pet.tasks = [Task.from_dict(task_data) for task_data in data.get("tasks", [])]
+        return pet
 
     def complete_task(self, task: Task) -> Optional[Task]:
         """Mark a task complete and, if it recurs, add and return its next occurrence."""
@@ -77,6 +120,38 @@ class Owner:
             for task in pet.tasks:
                 all_tasks.append((pet, task))
         return all_tasks
+
+    def to_dict(self) -> dict:
+        """Convert this owner (and all pets/tasks) to a JSON-serializable dictionary."""
+        return {
+            "name": self.name,
+            "available_minutes": self.available_minutes,
+            "preferences": self.preferences,
+            "pets": [pet.to_dict() for pet in self.pets],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Owner":
+        """Rebuild an Owner (and all pets/tasks) from a dictionary produced by to_dict()."""
+        owner = cls(
+            name=data["name"],
+            available_minutes=data["available_minutes"],
+            preferences=data.get("preferences", ""),
+        )
+        owner.pets = [Pet.from_dict(pet_data) for pet_data in data.get("pets", [])]
+        return owner
+
+    def save_to_json(self, filepath: str = "data.json") -> None:
+        """Save this owner's full state (pets and tasks) to a JSON file."""
+        with open(filepath, "w") as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    @classmethod
+    def load_from_json(cls, filepath: str = "data.json") -> "Owner":
+        """Load an owner's full state (pets and tasks) from a JSON file."""
+        with open(filepath) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
 
 
 @dataclass

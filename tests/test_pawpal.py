@@ -2,6 +2,8 @@
 
 from datetime import date, timedelta
 
+import pytest
+
 from pawpal_system import Task, Pet, Owner, Scheduler
 
 
@@ -259,3 +261,47 @@ def test_find_next_available_slot_ignores_completed_tasks():
     slot = scheduler.find_next_available_slot(owner, due_date=today, duration_minutes=10, day_start="08:00")
 
     assert slot == "08:00"
+
+
+# --- Persistence (save_to_json / load_from_json) ---
+
+def test_save_and_load_json_round_trip(tmp_path):
+    today = date(2026, 1, 1)
+    owner = Owner(name="Jordan", available_minutes=90, preferences="mornings only")
+
+    mochi = Pet("Mochi", "dog")
+    mochi.add_task(Task("Morning walk", 30, "high", "walk", frequency="daily", scheduled_time="08:00", due_date=today))
+    done_task = Task("Breakfast", 10, "high", "feeding", scheduled_time="08:30", due_date=today)
+    done_task.mark_complete()
+    mochi.add_task(done_task)
+    owner.add_pet(mochi)
+
+    filepath = tmp_path / "data.json"
+    owner.save_to_json(str(filepath))
+    reloaded = Owner.load_from_json(str(filepath))
+
+    assert reloaded.name == owner.name
+    assert reloaded.available_minutes == owner.available_minutes
+    assert reloaded.preferences == owner.preferences
+    assert [p.name for p in reloaded.pets] == ["Mochi"]
+
+    reloaded_tasks = {t.title: t for t in reloaded.pets[0].tasks}
+    assert reloaded_tasks["Morning walk"].due_date == today
+    assert reloaded_tasks["Morning walk"].frequency == "daily"
+    assert reloaded_tasks["Morning walk"].completed is False
+    assert reloaded_tasks["Breakfast"].completed is True
+
+
+def test_load_from_json_missing_file_raises():
+    with pytest.raises(FileNotFoundError):
+        Owner.load_from_json("this_file_does_not_exist.json")
+
+
+def test_save_to_json_handles_owner_with_no_pets(tmp_path):
+    owner = Owner(name="Jordan", available_minutes=60)
+    filepath = tmp_path / "data.json"
+
+    owner.save_to_json(str(filepath))
+    reloaded = Owner.load_from_json(str(filepath))
+
+    assert reloaded.pets == []

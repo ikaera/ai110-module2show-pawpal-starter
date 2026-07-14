@@ -1,5 +1,7 @@
 """Manual demo script for verifying PawPal+ scheduling logic in the terminal."""
 
+import os
+
 from pawpal_system import Task, Pet, Owner, Scheduler
 
 # Owner has 90 minutes available today — enough to fit some tasks, not all.
@@ -67,3 +69,14 @@ if slot:
     print(f"Next available slot: {slot}")
 else:
     print("No slot available today.")
+
+# --- Persistence demo: save the owner's full state to JSON, then reload it. ---
+demo_file = "demo_data.json"
+owner.save_to_json(demo_file)
+print(f"\nSaved {owner.name}'s data to {demo_file}.")
+
+reloaded_owner = Owner.load_from_json(demo_file)
+print(f"Reloaded owner '{reloaded_owner.name}' with {len(reloaded_owner.pets)} pets "
+      f"and {len(reloaded_owner.get_all_tasks())} total tasks.")
+
+os.remove(demo_file)
