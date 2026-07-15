@@ -45,15 +45,30 @@ import after moving `date` to the top-level import.
 
 > Compare two different prompts (or two different models) on the same task.
 
+Note: I didn't have a second AI service (e.g. Gemini/ChatGPT) available in this environment, so instead of
+"Claude vs. another model" I compared **two different prompting strategies given to the same model (Claude
+Sonnet 5)** on the same complex algorithmic task — the template explicitly allows "two different prompts (or
+two different models)". Task: *rescheduling a weekly recurring task so it doesn't collide with an existing
+task, without just blindly advancing the due_date by 7 days.*
+
 | | Option A | Option B |
 |-|----------|----------|
-| **Model / tool used** | | |
-| **Prompt** | | |
-| **Response summary** | | |
-| **What was useful** | | |
-| **Problems noticed** | | |
-| **Decision** | | |
+| **Model / tool used** | Claude Sonnet 5 | Claude Sonnet 5 |
+| **Prompt** | "Write a simple greedy algorithm for rescheduling a missed/conflicting weekly task: advance the due_date by 7 days, and if that exact time is already taken by another task, push forward day-by-day until you find a day with no task at that same time." | "Design a more robust rescheduling algorithm that reuses the existing `find_next_available_slot()` method: advance by 7 days as a baseline, then check for conflicts and fall back to searching for an open slot on that day (or later days) if needed." |
+| **Response summary** | A self-contained loop that computes `due_date + 7 days`, then for each extra day checks whether *any* existing task starts at the *exact same* `scheduled_time`; the first day with no exact-time match wins. | A loop that reuses `find_next_available_slot()`: for each candidate day, if the original time slot is free it's kept, otherwise `find_next_available_slot()` is called to find the earliest open gap of the right duration that day, advancing to the next day if the day is fully booked. |
+| **What was useful** | Very short and easy to read; no dependency on other Scheduler methods. | Reuses already-tested conflict logic instead of re-deriving it; correctly treats conflicts as *duration overlaps* (not just identical start times), and degrades gracefully (day fully booked → try the next day) using code that already existed and was already unit-tested. |
+| **Problems noticed** | The "exact same start time" check is wrong: two tasks with *different* start times can still overlap in duration (e.g. an existing 10:15–10:35 task doesn't collide by this check with a new 10:00 task, even though they overlap 10:15–10:30). It also duplicates conflict-detection logic that already exists elsewhere in the codebase. | Left unchecked, an early draft always called `find_next_available_slot()` even when the original time was actually free, silently moving tasks that didn't need to move. Needed an explicit "is the original slot actually free?" check first, added before falling back to the slot search. |
+| **Decision** | Not used as-is — its conflict check was a real correctness bug (silently misses overlapping tasks with staggered start times). | Used, after fixing the "always searches even when unnecessary" issue: the task's original scheduled_time is checked directly (open-interval overlap, so it's duration-aware, not just start-time-aware) before ever calling `find_next_available_slot()`, and searching only happens as a genuine fallback. |
 
 **Which approach did you use in your final implementation and why?**
 
-<!-- Your conclusion -->
+A refined version of Option B, implemented as `Scheduler.reschedule_weekly_task()` in `pawpal_system.py`. I
+kept Option B's core idea — reuse `find_next_available_slot()` as the fallback search instead of reinventing
+conflict detection — but fixed its "always searches" bug by adding an explicit duration-aware overlap check
+first (borrowing the *intent* of Option A's per-day loop, but checking real time-range overlap instead of
+exact-start-time equality, which was Option A's actual flaw). This kept the final method both correct
+(duration-aware conflicts) and DRY (no duplicate slot-finding logic). One known trade-off, documented in the
+method's docstring: when a conflict does push the task to a new day, the replacement time is the *earliest*
+open gap that day, not necessarily the time closest to the task's original `scheduled_time` — acceptable for
+this project's scope, but worth flagging as a limitation, the same way `detect_conflicts()`'s exact-time-only
+matching is flagged elsewhere in `reflection.md`.

@@ -2,6 +2,7 @@
 
 import os
 import sys
+from datetime import timedelta
 
 # Windows consoles default to a cp1252 codepage that can't encode emoji;
 # force UTF-8 so the formatted output below prints correctly everywhere.
@@ -26,6 +27,7 @@ whiskers = Pet(name="Whiskers", species="cat")
 whiskers.add_task(Task("Brushing", 15, "low", "grooming", scheduled_time="20:00"))
 whiskers.add_task(Task("Feeding", 10, "high", "feeding", scheduled_time="08:15"))
 whiskers.add_task(Task("Litter box cleaning", 10, "medium", "grooming", scheduled_time="12:00"))
+whiskers.add_task(Task("Weekly grooming", 30, "medium", "grooming", frequency="weekly", scheduled_time="10:00"))
 
 owner.add_pet(mochi)
 owner.add_pet(whiskers)
@@ -99,6 +101,19 @@ if slot:
     print(f"🕒 Next available slot: {slot}")
 else:
     print("🕒 No slot available today.")
+
+# --- Weekly rescheduling demo: next week's "Weekly grooming" would land at the same
+#     time as a vet visit whiskers already has booked, so it gets nudged to a free slot. ---
+weekly_grooming = next(t for t in whiskers.tasks if t.title == "Weekly grooming")
+next_week = weekly_grooming.due_date + timedelta(weeks=1)
+whiskers.add_task(Task("Vet checkup", 20, "high", "meds", scheduled_time="10:15", due_date=next_week))
+
+print(f"\nRescheduling '{weekly_grooming.title}' for next week (conflicts with a vet checkup at 10:15):\n")
+rescheduled = scheduler.reschedule_weekly_task(owner, weekly_grooming)
+if rescheduled:
+    print(f"🔁 Moved to {rescheduled.due_date} at {rescheduled.scheduled_time} (originally 10:00).")
+else:
+    print("🔁 No open slot found within the search window.")
 
 # --- Persistence demo: save the owner's full state to JSON, then reload it. ---
 demo_file = "demo_data.json"

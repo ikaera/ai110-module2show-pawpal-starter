@@ -9,6 +9,17 @@ PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 RECURRENCE_INTERVALS = {"daily": timedelta(days=1), "weekly": timedelta(weeks=1)}
 
 
+def _time_to_minutes(hhmm: str) -> int:
+    """Convert an "HH:MM" string to minutes since midnight."""
+    hours, minutes = map(int, hhmm.split(":"))
+    return hours * 60 + minutes
+
+
+def _minutes_to_time(total_minutes: int) -> str:
+    """Convert minutes since midnight back to an "HH:MM" string."""
+    return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+
+
 @dataclass
 class Task:
     title: str
@@ -212,14 +223,6 @@ class Scheduler:
         day_end: str = "21:00",
     ) -> Optional[str]:
         """Return the earliest "HH:MM" slot on due_date with at least duration_minutes free, or None."""
-
-        def to_minutes(hhmm: str) -> int:
-            hours, minutes = map(int, hhmm.split(":"))
-            return hours * 60 + minutes
-
-        def to_hhmm(total_minutes: int) -> str:
-            return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
-
         day_tasks = [
             task
             for _, task in owner.get_all_tasks()
@@ -228,20 +231,66 @@ class Scheduler:
         day_tasks.sort(key=lambda t: t.scheduled_time)
 
         busy_blocks = [
-            (to_minutes(task.scheduled_time), to_minutes(task.scheduled_time) + task.duration_minutes)
+            (_time_to_minutes(task.scheduled_time), _time_to_minutes(task.scheduled_time) + task.duration_minutes)
             for task in day_tasks
         ]
 
-        cursor = to_minutes(day_start)
-        end_of_day = to_minutes(day_end)
+        cursor = _time_to_minutes(day_start)
+        end_of_day = _time_to_minutes(day_end)
 
         for start, end in busy_blocks:
             if start - cursor >= duration_minutes:
-                return to_hhmm(cursor)
+                return _minutes_to_time(cursor)
             cursor = max(cursor, end)
 
         if end_of_day - cursor >= duration_minutes:
-            return to_hhmm(cursor)
+            return _minutes_to_time(cursor)
+
+        return None
+
+    def reschedule_weekly_task(
+        self,
+        owner: Owner,
+        task: Task,
+        max_extra_days: int = 7,
+    ) -> Optional[Task]:
+        """Return the task's next occurrence, nudged forward to avoid a scheduling conflict.
+
+        Starts from the task's normal next occurrence (due_date advanced by its recurrence
+        interval). If that exact time slot is free, it's kept as-is. If another task's duration
+        overlaps it, this searches forward day-by-day (up to max_extra_days) using
+        find_next_available_slot for the earliest open gap long enough for the task. Returns
+        None if the task doesn't recur, or if no open slot is found within the search window.
+
+        Note: when a conflict pushes the task to a new day, the new time is the *earliest*
+        open gap that day (per find_next_available_slot), not necessarily the time closest to
+        the task's original scheduled_time.
+        """
+        next_task = task.get_next_occurrence()
+        if next_task is None:
+            return None
+
+        for extra_days in range(max_extra_days + 1):
+            candidate_date = next_task.due_date + timedelta(days=extra_days)
+            start = _time_to_minutes(next_task.scheduled_time)
+            end = start + next_task.duration_minutes
+
+            conflict = any(
+                other.due_date == candidate_date
+                and _time_to_minutes(other.scheduled_time) < end
+                and _time_to_minutes(other.scheduled_time) + other.duration_minutes > start
+                for _, other in owner.get_all_tasks()
+            )
+
+            if not conflict:
+                next_task.due_date = candidate_date
+                return next_task
+
+            slot = self.find_next_available_slot(owner, candidate_date, next_task.duration_minutes)
+            if slot is not None:
+                next_task.due_date = candidate_date
+                next_task.scheduled_time = slot
+                return next_task
 
         return None
 

@@ -344,3 +344,94 @@ def test_save_to_json_handles_owner_with_no_pets(tmp_path):
     reloaded = Owner.load_from_json(str(filepath))
 
     assert reloaded.pets == []
+
+
+# --- Weekly task rescheduling ---
+
+def test_reschedule_weekly_task_returns_none_for_non_recurring_task():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    task = Task("One-time vet visit", 30, "high", "meds", frequency="once")
+
+    assert scheduler.reschedule_weekly_task(owner, task) is None
+
+
+def test_reschedule_weekly_task_keeps_original_time_when_no_conflict():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+
+    pet = Pet("Mochi", "dog")
+    task = Task("Grooming", 30, "medium", "grooming", frequency="weekly", scheduled_time="10:00", due_date=today)
+    pet.add_task(task)
+    owner.add_pet(pet)
+
+    rescheduled = scheduler.reschedule_weekly_task(owner, task)
+
+    assert rescheduled.due_date == today + timedelta(weeks=1)
+    assert rescheduled.scheduled_time == "10:00"
+
+
+def test_reschedule_weekly_task_finds_a_different_slot_when_next_occurrence_conflicts():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+    next_week = today + timedelta(weeks=1)
+
+    pet = Pet("Mochi", "dog")
+    task = Task("Grooming", 30, "medium", "grooming", frequency="weekly", scheduled_time="10:00", due_date=today)
+    pet.add_task(task)
+    # Blocks 10:00-10:30 on next_week, overlapping the naive next occurrence.
+    pet.add_task(Task("Vet checkup", 20, "high", "meds", scheduled_time="10:15", due_date=next_week))
+    owner.add_pet(pet)
+
+    rescheduled = scheduler.reschedule_weekly_task(owner, task)
+
+    assert rescheduled.due_date == next_week
+    assert rescheduled.scheduled_time != "10:00"
+    assert rescheduled.scheduled_time == "08:00"  # earliest open gap that day
+
+
+def test_reschedule_weekly_task_advances_to_next_day_when_day_is_fully_booked():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+    next_week = today + timedelta(weeks=1)
+
+    pet = Pet("Mochi", "dog")
+    task = Task("Grooming", 30, "medium", "grooming", frequency="weekly", scheduled_time="10:00", due_date=today)
+    pet.add_task(task)
+    # Fully books next_week from 08:00-21:00 (the default search window).
+    pet.add_task(Task("All day event", 780, "high", "meds", scheduled_time="08:00", due_date=next_week))
+    owner.add_pet(pet)
+
+    rescheduled = scheduler.reschedule_weekly_task(owner, task)
+
+    assert rescheduled.due_date == next_week + timedelta(days=1)
+    assert rescheduled.scheduled_time == "10:00"  # no conflict the following day
+
+
+def test_reschedule_weekly_task_returns_none_when_no_slot_found_in_window():
+    scheduler = Scheduler()
+    owner = Owner(name="Jordan", available_minutes=90)
+    today = date(2026, 1, 1)
+    next_week = today + timedelta(weeks=1)
+
+    pet = Pet("Mochi", "dog")
+    task = Task("Grooming", 30, "medium", "grooming", frequency="weekly", scheduled_time="10:00", due_date=today)
+    pet.add_task(task)
+    # Fully books every day in the default 7-day search window.
+    for offset in range(8):
+        pet.add_task(
+            Task(
+                f"Blocker {offset}",
+                780,
+                "high",
+                "meds",
+                scheduled_time="08:00",
+                due_date=next_week + timedelta(days=offset),
+            )
+        )
+    owner.add_pet(pet)
+
+    assert scheduler.reschedule_weekly_task(owner, task) is None
